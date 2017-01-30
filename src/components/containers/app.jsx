@@ -45,7 +45,7 @@ export default class App extends Component {
   }
 
   setCurrentVideo(video, lesson) {
-    const fileName = `../videos/${ video.name }.mp4`
+    const fileName = `${ video.name }.mp4`
     const URL = `https://gre-on-demand.veritasprep.com/${ video.name }.mp4`
 
     const currentVideo = {
@@ -56,7 +56,7 @@ export default class App extends Component {
     }
 
     ipcRenderer.once('play-video', (event, arg) => {
-      this.setState({ url: fileName, currentVideo: currentVideo });
+      this.setState({ url: arg, currentVideo: currentVideo });
     })
 
     ipcRenderer.once('offline-vid-error', () => {
