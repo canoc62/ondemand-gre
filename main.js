@@ -8,11 +8,13 @@ const BrowserWindow = electron.BrowserWindow;
 const path = require('path');
 const url = require('url');
 const fs = require('fs');
+const http = require('http');
 const ipcMain = electron.ipcMain;
 const {session} = require('electron');
 const isOnline = require('is-online');
-
-const encryptor = require('file-encryptor');
+const crypto = require('crypto');
+const cp = require('child_process');
+const serverChild = cp.fork(__dirname + '/server.js');
 
 const getVideoData = require('./utils/getVideoData.js');
 
@@ -21,65 +23,53 @@ let useThis;
 // be closed automatically when the JavaScript object is garbage collected.
 let mainWindow;
 
-
-
-
 function createWindow () {
-  // Create the browser window.
-  mainWindow = new BrowserWindow({ width: 1280, height: 800, minWidth: 1024, minHeight: 768 });
 
+  //http.createServer((req, res) => {
 
-  // and load the index.html of the app.
-  mainWindow.loadURL(url.format({
-    pathname: path.join(__dirname, './public/index.html'),
-    protocol: 'file:',
-    slashes: true
-  }));
+    // Create the browser window.
+    mainWindow = new BrowserWindow({ width: 1280, height: 800, minWidth: 1024, minHeight: 768 });
 
-  // Open the DevTools.
-  mainWindow.webContents.openDevTools();
+    // and load the index.html of the app.
+    mainWindow.loadURL(url.format({
+      pathname: path.join(__dirname, './public/index.html'),
+      protocol: 'file:',
+      slashes: true
+    }));
 
-  // Emitted when the window is closed.
-  mainWindow.on('closed', function () {
-    // Dereference the window object, usually you would store windows
-    // in an array if your app supports multi windows, this is the time
-    // when you should delete the corresponding element.
-    mainWindow = null;
-  })
-  
-  // MSG= below i don't believe we are using this and I don't think it should be here. delete?
-  // ipcMain.on('download-video', (event, arg) => {
-  //   console.log('hello download-video');
-  //   console.log(arg);
-  //   const fileName = arg.substring(arg.lastIndexOf('/') + 1);
-  //   downloadVideo(arg, app.getAppPath() + '/videos/' + fileName)
-  // });
+    // Open the DevTools.
+    mainWindow.webContents.openDevTools();
 
-  const ses = session.fromPartition('persist:name').cookies;
+    // Emitted when the window is closed.
+    mainWindow.on('closed', function () {
+      // Dereference the window object, usually you would store windows
+      // in an array if your app supports multi windows, this is the time
+      // when you should delete the corresponding element.
+      mainWindow = null;
+    })
+    
+    const ses = session.fromPartition('persist:name').cookies;
 
-
- ipcMain.on('save-user', (event, arg) => {
+    ipcMain.on('save-user', (event, arg) => {
       // console.log(arg)
-   
+    
       const cookie = {url: 'http://www.auth.com', name: arg.user, value:arg.email, expirationDate: 1531036000}
 
       ses.set(cookie, (error) => {
         if (error) console.error(error)
       });
-  })
+    });
 
-   ipcMain.on('logout', function(event, arg){
+    ipcMain.on('logout', function(event, arg){
 
       ses.remove('http://www.auth.com', arg.name ,function(data){
         // console.log(data)
-      })
+      });
+    });
 
-   })
-
-  ipcMain.on('check-cookie', function(event){
-
-  // console.log("checking cookie")
-    ses.get({}, function(error, cookies) {
+    ipcMain.on('check-cookie', function(event){
+    // console.log("checking cookie")
+      ses.get({}, function(error, cookies) {
         // console.dir(cookies);
         if(cookies){
           event.sender.send('cookie-exists',cookies)
@@ -87,8 +77,43 @@ function createWindow () {
         if (error) {
             console.dir(error);
         }
-    })
-  })
+      })
+    });
+
+  //http.createServer((req, res) => {
+    //console.log('SERVER CREATED!!!');
+    // ipcMain.on('get-video', (event, arg) => {
+    //   // console.log('this is app path:' , app.getAppPath());
+    //   if (!fs.existsSync(app.getAppPath() + '/videos/')) {
+    //     fs.mkdirSync(app.getAppPath() + '/videos/');
+    //   }
+    //   //const filePath = app.getAppPath() + '/videos/' + arg;
+    //   const filePath = 'file://' + app.getAppPath() + '/videos/' + arg;
+    //   if (fs.existsSync(filePath)) {
+    //     event.sender.send('play-video', filePath);
+
+    //     //const vidStream = fs.createReadStream(filePath);
+    //     // vidStream.on('open', () => {
+
+    //     // });
+    //     request(filePath, (error, response, body) => {
+    //       const vidStream = fs.createReadStream(filePath);
+
+    //       console.log("STATUS CODE FOR FILE:",response.statusCode);
+    //     });
+    //   } else {
+    //     isOnline().then((online) => {
+    //       if (online) {
+    //           // encryptor.decryptFile(app.getAppPath() + '/encrypted.dat', app.getAppPath() + '/gre_intro.mp4', key, function(err) {console.log('hello') });
+    //         const videoUrl = 'https://gre-on-demand.veritasprep.com/' + arg;
+    //         event.sender.send('play-video', videoUrl);
+    //       } else {
+    //         event.sender.send('offline-vid-error');
+    //       }
+    //     })
+    //   }
+    // });
+  //}).listen(2462);
 }
 
 // This method will be called when Electron has finished
@@ -126,75 +151,92 @@ function downloadVideo(url, targetPath) {
     url
   });
 
-  const out = fs.createWriteStream(targetPath);
+  let encryptedVid = '';
+  const output = fs.createWriteStream(targetPath);
+  let cipher = crypto.createCipher('aes192', 'kazazi12');
 
-  req.pipe(out);
-  req.on('end', () => {
-    // console.log("Video done downloading!"); 
-    // console.log('this is out:' , out.path)
+  cipher.on('readable', () => {
+    const data = cipher.read();
 
-    // encryptor.encryptFile(out.path, 'encrypted.dat', key, function(err) {
-    //   console.log('bye')
-    //   console.log('this is out2222:' , out.path)
-    //   useThis = 'encrypted.dat'
-    //   fs.unlinkSync(out.path)
-      
-    // });
+    if (data) {
+      encryptedVid += data.toString('hex');
+    }
+  });
 
+  req.on('data', (chunk) => {
+    cipher.write(chunk);
+  });
+
+  cipher.on('end', () => {
+    console.log('Video downloaded!');
+    output.write(encryptedVid);
+  });
+
+  req.on('end', () =>{
+    cipher.end();
   });
 }
-// console.log(useThis)
 
-  ipcMain.on('download-video', (event, arg) => {
-    const fileName = arg.substring(arg.lastIndexOf('/') + 1);
-    if (!fs.existsSync(app.getAppPath() + '/videos/')) {
-      fs.mkdirSync(app.getAppPath() + '/videos/');
-    }
-    downloadVideo(arg, app.getAppPath() + '/videos/' + fileName);
-    });
- 
-  ipcMain.on('get-video', (event, arg) => {
-    // console.log('this is app path:' , app.getAppPath());
-    if (!fs.existsSync(app.getAppPath() + '/videos/')) {
-      fs.mkdirSync(app.getAppPath() + '/videos/');
-    }
-    const filePath = app.getAppPath() + '/videos/' + arg;
-    if (fs.existsSync(filePath)) {
-      event.sender.send('play-video', filePath);
-    } else {
-      isOnline().then((online) => {
-        if (online) {
-           // encryptor.decryptFile(app.getAppPath() + '/encrypted.dat', app.getAppPath() + '/gre_intro.mp4', key, function(err) {console.log('hello') });
-          const videoUrl = 'https://gre-on-demand.veritasprep.com/' + arg;
-          event.sender.send('play-video', videoUrl);
-        } else {
-          event.sender.send('offline-vid-error');
-        }
-      })
-    }
-  });
+// function downloadVideo(url, targetPath) {
+//   const req = request({
+//     method: 'GET',
+//     url
+//   });
 
-  ipcMain.on('get-video-data', (event) => {
-    getVideoData(event, app.getAppPath());
-  });
+//   const out = fs.createWriteStream(targetPath);
 
+//   req.pipe(out);
+//   req.on('end', () => {
+//     // console.log("Video done downloading!"); 
+//     // console.log('this is out:' , out.path)
 
+//     // encryptor.encryptFile(out.path, 'encrypted.dat', key, function(err) {
+//     //   console.log('bye')
+//     //   console.log('this is out2222:' , out.path)
+//     //   useThis = 'encrypted.dat'
+//     //   fs.unlinkSync(out.path)
+      
+//     // });
 
-// var key = 'My Super Secret Key';
+//   });
+// }
 
-// // Encrypt file.
-// encryptor.encryptFile('/Users/NickHoltan/Desktop/gre_intro.mp4', 'encrypted.dat', key, function(err) {
-//   // Encryption complete.
-// });
+ipcMain.on('download-video', (event, arg) => {
+  const fileName = arg.substring(arg.lastIndexOf('/') + 1);
+  if (!fs.existsSync(app.getAppPath() + '/videos/')) {
+    fs.mkdirSync(app.getAppPath() + '/videos/');
+  }
+  downloadVideo(arg, app.getAppPath() + '/videos/' + fileName);
+});
 
-// Decrypt file.
-// encryptor.decryptFile('encrypted.dat', 'output_file.txt', key, function(err) {
-//   // Decryption complete.
-// });
+ipcMain.on('get-video', (event, arg) => {
 
-  
+  if (!fs.existsSync(app.getAppPath() + '/videos/')) {
+    fs.mkdirSync(app.getAppPath() + '/videos/');
+  }
+  //const filePath = app.getAppPath() + '/videos/' + arg;
+  const filePath = app.getAppPath() + '/videos/' + arg;
+  if (fs.existsSync(filePath)) {
+    // we only send the localhost path if it exists on file
+    // html5 will request from localhost, but our server will retrieve from local filePath
+    const localhostPath = 'http://localhost:2462/' + arg;
+    serverChild.send({ filePath, videoFile: arg });
+    // event.sender.send('play-video', filePath);
+    event.sender.send('play-video', localhostPath);
 
+  } else {
+    isOnline().then((online) => {
+      if (online) {
 
+        const videoUrl = 'https://gre-on-demand.veritasprep.com/' + arg;
+        event.sender.send('play-video', videoUrl);
+      } else {
+        event.sender.send('offline-vid-error');
+      }
+    })
+  }
+});
 
-
-
+ipcMain.on('get-video-data', (event) => {
+  getVideoData(event, app.getAppPath());
+});
