@@ -8,7 +8,7 @@ const Lesson = (props) => {
     const selectVideo = (e) => {
       props.setCurrentVideo(video, props.lessonData);
     }
-    contents.push(<div onClick={ selectVideo } id={ video.name } key={i} style={ videoTitle }>{ video.title } <span style={ abs }><span style={ download } id={ video.name } onClick={ props.downloadIndVid }><span style={ complete }></span></span></span></div>)
+    contents.push(<div onClick={ selectVideo } id={ video.name } key={i} style={ videoTitle }>{ video.title } <span style={ abs }><span style={ download } id={ video.name } onClick={ props.downloadIndVid }>DL<span style={ complete }></span></span></span></div>)
   });
 
 

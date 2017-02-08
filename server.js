@@ -9,6 +9,7 @@ let videoFile;
 process.on('message', (m) => {
   console.log('MESSAGE IN CHILD:', m);
   filePath = m.filePath;
+  //filePath = 'decryptedVid.mp4';
   videoFile = m.videoFile;
   console.log('filePath:', filePath);
   console.log('videoFile:', videoFile);
@@ -16,7 +17,7 @@ process.on('message', (m) => {
 
 const server = http.createServer((req, res) => {
 
-  const decipher = crypto.createDecipher('aes192', 'kazazi12');
+  const decipher = crypto.createDecipher('aes-256-ctr', 'kazazi12');
 
   console.log("FILEPATH IN SERVER: ", filePath);
   //const vidFileStream = fs.createReadStream(filePath);
@@ -31,55 +32,74 @@ const server = http.createServer((req, res) => {
     
     if (req.url === '/' + videoFile) {
       fs.stat(filePath, (err, stats) => {
-        // vidFileStream.pipe(decipher).pipe(res);
-        console.log('hellooooooo');
-        // vidFileStream.on('data', (chunk) => {
-        //   console.log('chunk:', chunk);
-        //   let decrypted = decipher.update(chunk);
-        //   console.log('decrypted chunk:', chunk);
-        //   res.end(decrypted);
-        // });
-        //res.end();
 
-        // if (err) {
-        //   if (err.code === 'ENOENT') {
-        //     return res.sendStatus(404);
-        //   }
-        //   res.send(err);
-        // }
-
+        if (err) {
+          if (err.code === 'ENOENT') {
+            // 404 Error if file not found
+            return res.sendStatus(404);
+          }
+        res.end(err);
+        }
         const range = req.headers.range;
 
-        // if (!range) {
-        //   return res.sendStatus(416);
-        // }
+        if (!range) {
+          return res.sendStatus(416);
+        }
 
-        console.log('req.headers.range:', range);
         const positions = range.replace(/bytes=/, "").split("-");
         const start = parseInt(positions[0], 10);
         const fileSize = stats.size;
+        console.log('FILE SIZE:', fileSize);
         const end = positions[1] ? parseInt(positions[1], 10) : fileSize - 1;
         const chunkSize = (end - start) + 1;
 
+
         res.writeHead(206, {
           "Content-Range": 'bytes ' + start + '-' + end + '/' + fileSize,
+          //"Content-Range": 'bytes ' + 0 + '-' + 500 + '/' + fileSize,
           "Accept-Ranges": 'bytes',
           "Content-Length": chunkSize,
           "Content-Type": 'video/mp4'
         });
 
-        const vidFileStream = fs.createReadStream(filePath, { start, end });
+        const vidFileStream = fs.createReadStream(filePath, { autoClose: true, start, end });
+        const output = fs.createWriteStream('decryptedFromServer.mp4');
+        //vidFileStream.pipe(decipher).pipe(res);
         vidFileStream.on('open', () => {
           console.log('OPENED!'); 
-          //vidFileStream.pipe(decipher).pipe(res);
-          vidFileStream.on('data', (chunk) => {
-            res.write(decipher.update(chunk, 'hex', 'utf8'));
-          });
+          vidFileStream.pipe(decipher).pipe(output);
+          vidFileStream.pipe(decipher).pipe(res);
+          //vidFileStream.pipe(res);
 
-          vidFileStream.on('end', () => {
-            res.end(decipher.final('utf8'));
-          });
-        }).on('error', (err) => {
+
+        //   decipher.on('readable', () => {
+        //     const data = decipher.read();
+
+        //     if (data) {
+        //       res.write(data);
+        //     }
+        //   });
+
+        // decipher.on('data', (chunk) => {
+        //   res.write(chunk.toString('base64'));
+        // });
+
+        //   vidFileStream.on('data', (chunk) => {
+        //     //console.log('DECRYPTED CHUNK:', chunk.toString('hex'));
+        //     res.write(decipher.update(chunk, 'binary', 'binary'));
+          
+            
+        // //     //res.write(decipher.update(chunk));
+        // //     decipher.write(chunk);
+        // //   });
+
+        //   vidFileStream.on('end', () => {
+        //     //decipher.end();
+        //     //res.end();
+        //     res.end(decipher.final('binary'), 'binary');
+        //   });
+        })
+        .on('error', (err) => {
           res.end(err);
         });
       });

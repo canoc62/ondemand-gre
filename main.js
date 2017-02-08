@@ -145,6 +145,56 @@ app.on('activate', function () {
 // In this file you can include the rest of your app's specific main process
 // code. You can also put them in separate files and require them here.
 
+// function downloadVideo(url, targetPath) {
+//   const req = request({
+//     method: 'GET',
+//     url
+//   });
+
+//   let encryptedVid = '';
+//   const output = fs.createWriteStream(targetPath);
+//   let cipher = crypto.createCipher('aes192', 'kazazi12');
+
+
+//   // vidFileStream.on('data', (chunk) => {
+//   //   res.write(decipher.update(chunk, 'hex', 'utf8'));
+//   // });
+
+//   // vidFileStream.on('end', () => {
+//   //   res.end(decipher.final('utf8'));
+//   // });
+
+
+//   // cipher.on('readable', () => {
+//   //   const data = cipher.read();
+//   //   if (data) {
+//   //     console.log('DATA:', data);
+//   //     encryptedVid += data;//.toString('hex');//.toString();
+//   //   }
+//   // });
+
+//   req.on('data', (chunk) => {
+//     //console.log('CHUNK:', chunk);
+//     //cipher.write(chunk.toString('hex'));
+//     cipher.write(chunk.toString('hex'))
+
+//     //encryptedVid += cipher.update(chunk, 'hex');
+//     //cipher.update(chunk);
+//   });
+
+//   // cipher.on('end', () => {
+//   //   //console.log('Video downloaded!');
+//   //   output.write(encryptedVid);
+//   // });
+
+//   req.on('end', () =>{
+//     console.log('Video downloaded!');
+//     //cipher.end();
+//     //encryptedVid += cipher.final('hex');
+//     output.write(encryptedVid);
+//   });
+// }
+
 function downloadVideo(url, targetPath) {
   const req = request({
     method: 'GET',
@@ -153,28 +203,29 @@ function downloadVideo(url, targetPath) {
 
   let encryptedVid = '';
   const output = fs.createWriteStream(targetPath);
-  let cipher = crypto.createCipher('aes192', 'kazazi12');
+  let cipher = crypto.createCipher('aes-256-cbc', 'kazazi12');
+  req.pipe(cipher).pipe(output);
 
-  cipher.on('readable', () => {
-    const data = cipher.read();
+  // cipher.on('readable', () => {
+  //   const data = cipher.read();
 
-    if (data) {
-      encryptedVid += data.toString('hex');
-    }
-  });
+  //   if (data) {
+  //     encryptedVid += data;
+  //   }
+  // });
 
-  req.on('data', (chunk) => {
-    cipher.write(chunk);
-  });
+  // req.on('data', (chunk) => {
+  //   cipher.write(chunk);
+  // });
 
-  cipher.on('end', () => {
-    console.log('Video downloaded!');
-    output.write(encryptedVid);
-  });
+  // cipher.on('end', () => {
+  //   console.log('Video downloaded!');
+  //   output.write(encryptedVid);
+  // });
 
-  req.on('end', () =>{
-    cipher.end();
-  });
+  // req.on('end', () =>{
+  //   cipher.end();
+  // });
 }
 
 // function downloadVideo(url, targetPath) {
