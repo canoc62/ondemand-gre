@@ -71,7 +71,7 @@ function createWindow () {
     // improvedProg["sid"] = Number(sid);
    // console.log('this is improvedProg in save-user' , improvedProg)
 
-    fs.writeFile(app.getAppPath() + "/progress.json", JSON.stringify(improvedProg), function (err) {
+    fs.writeFile(path.join(app.getAppPath(), "../progress.json"), JSON.stringify(improvedProg), function (err) {
       if (err) {
         return console.log('There was an error in writing to progress.json file:', err);
       }
@@ -93,7 +93,7 @@ function createWindow () {
         let progressData;
         // console.dir(cookies);
         if (cookies) {
-          fs.readFile(app.getAppPath() + '/progress.json', {encoding: 'utf-8'}, function (err, data) {
+          fs.readFile(path.join(app.getAppPath(), '../progress.json'), {encoding: 'utf-8'}, function (err, data) {
             if (err) console.log(err);
             if (data) {
               progressData = JSON.parse(data);
@@ -191,15 +191,15 @@ function downloadVideo(event, url, targetPath, lesson, video) {
 
 
 
-ipcMain.on('download-video', (event, path, lesson, video) => {
+ipcMain.on('download-video', (event, filePath, lesson, video) => {
   isOnline().then(function (online) {
     if (online) {
       console.log(path);
-	    const fileName = path.substring(path.lastIndexOf('/') + 1);
-	    if (!fs.existsSync(app.getAppPath() + '/videos/')) {
-		    fs.mkdirSync(app.getAppPath() + '/videos/');
+	    const fileName = filePath.substring(filePath.lastIndexOf('/') + 1);
+      if (!fs.existsSync(path.join(app.getAppPath(), '../videos/'))) {
+        fs.mkdirSync(path.join(app.getAppPath(), '../videos/'));
 	    }
-	    downloadVideo(event, path, app.getAppPath() + '/videos/' + fileName, lesson, video);
+      downloadVideo(event, filePath, path.join(app.getAppPath(), '../videos/', fileName), lesson, video);
     } else {
       event.sender.send('offline-download-error');
     }
@@ -208,18 +208,18 @@ ipcMain.on('download-video', (event, path, lesson, video) => {
 
   
 
-ipcMain.on('get-video', (event, path) => {
-	if (!fs.existsSync(app.getAppPath() + '/videos/')) {
-		fs.mkdirSync(app.getAppPath() + '/videos/');
+ipcMain.on('get-video', (event, filePathName) => {
+  if (!fs.existsSync(path.join(app.getAppPath(), '../videos/'))) {
+    fs.mkdirSync(path.join(app.getAppPath(), '../videos/'));
 	}
-	const filePath = app.getAppPath() + '/videos/' + path;
+  const filePath = path.join(app.getAppPath(), '../videos/' + filePathName);
 	if (fs.existsSync(filePath)) {
 		event.sender.send('play-video', filePath);
 	} else {
 		isOnline().then((online) => {
 			if (online) {
 					// encryptor.decryptFile(app.getAppPath() + '/encrypted.dat', app.getAppPath() + '/gre_intro.mp4', key, function(err) {console.log('hello') });
-				const videoUrl = 'https://gre-on-demand.veritasprep.com/' + path;
+				const videoUrl = 'https://gre-on-demand.veritasprep.com/' + filePathName;
 				event.sender.send('play-video', videoUrl);
 			} else {
 				 event.sender.send('offline-vid-error');
@@ -237,7 +237,7 @@ ipcMain.on('get-video-data', (event) => {
 function updateProgress() {
   isOnline().then(online => {
     if (online === true) {
-      fs.readFile(app.getAppPath() + '/progress.json', {encoding: 'utf-8'}, function(err, data) {
+      fs.readFile(path.join(app.getAppPath(), '../progress.json'), {encoding: 'utf-8'}, function(err, data) {
         if (!err && data) {
           newProgress = JSON.parse(data);
          
@@ -280,7 +280,7 @@ setInterval(updateProgress, twentySec);
 
 function checkVideoTimeStamp(vidNameArr) {
   for (let i = 2; i < vidNameArr.length; i += 1) {
-    let folderToAccess = app.getAppPath() + '/videos/';
+    let folderToAccess = path.join(app.getAppPath(), '../videos/');
     let videoInFolder = fs.statSync(folderToAccess + vidNameArr[i]);
     let createdVideoTime = videoInFolder.birthtime.getTime();
     let weekInMilliSec = 604800000;
@@ -298,7 +298,7 @@ ipcMain.on('save-progress-auto', (event, arg, sid) => {
   const improvedProg = arg;
   improvedProg["sid"] = Number(sid);
   // console.log(improvedProg.sid)
-  fs.writeFile(app.getAppPath() + "/progress.json", JSON.stringify(improvedProg), function (err) {
+  fs.writeFile(path.join(app.getAppPath(), "../progress.json"), JSON.stringify(improvedProg), function (err) {
     if (err) {
       return console.log(err);
     }

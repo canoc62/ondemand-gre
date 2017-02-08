@@ -1,6 +1,7 @@
 const fs = require('fs');
 const request = require('request');``
 const isOnline = require('is-online');
+const path = require('path');
 
 module.exports = (event, appPath) => {
   const URL = 'https://www.veritasprep.com/api/desktop-app/get_playlist.php';
@@ -25,7 +26,7 @@ module.exports = (event, appPath) => {
     return JSON.stringify(videoData);
   }
   const sendFile = () => {
-    fs.readFile(appPath + '/data/data.json', 'utf8', (err, data) => {
+    fs.readFile(path.join(appPath, '/data/data.json'), 'utf8', (err, data) => {
       data = correctError(data);
       data = addDownloadStatus(data);
       event.sender.send('load-video-data', data);
@@ -38,7 +39,7 @@ module.exports = (event, appPath) => {
   isOnline().then(online => {
     if (online) {
       console.log('Network connection detected.');
-      output = fs.createWriteStream(appPath + '/data/data.json');
+      output = fs.createWriteStream(path.join(appPath, '/data/data.json'));
       req = request.post(URL, { form: body });
       req.pipe(output);
       req.on('end', () => sendFile());
