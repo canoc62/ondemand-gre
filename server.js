@@ -59,10 +59,14 @@ const server = http.createServer((req, res) => {
           //"Content-Range": 'bytes ' + 0 + '-' + 500 + '/' + fileSize,
           "Accept-Ranges": 'bytes',
           "Content-Length": chunkSize,
-          "Content-Type": 'video/mp4'
+          "Content-Type": 'video/mp4',
+          'Content-disposition': 'attachment; filename=' + videoFile
         });
+        //res.setHeader('Content-disposition', 'attachment; filename=' + videoFile);
 
-        const vidFileStream = fs.createReadStream(filePath, { autoClose: true, start, end });
+        //const vidFileStream = fs.createReadStream(filePath, { autoClose: true, start, end });
+        //const vidFileStream = fs.createReadStream('/Users/canoc/Coding/codesmith/production_project/offline-gre copy/videos/');
+        const vidFileStream = fs.createReadStream(filePath);
         const output = fs.createWriteStream('decryptedFromServer.mp4');
         //vidFileStream.pipe(decipher).pipe(res);
         vidFileStream.on('open', () => {
