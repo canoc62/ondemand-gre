@@ -60,7 +60,7 @@ const server = http.createServer((req, res) => {
           "Accept-Ranges": 'bytes',
           "Content-Length": chunkSize,
           "Content-Type": 'video/mp4',
-          'Content-disposition': 'attachment; filename=' + videoFile
+          //'Content-disposition': 'attachment; filename=' + videoFile
         });
         //res.setHeader('Content-disposition', 'attachment; filename=' + videoFile);
 
