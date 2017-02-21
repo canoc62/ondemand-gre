@@ -45,6 +45,7 @@ function createWindow () {
       // Dereference the window object, usually you would store windows
       // in an array if your app supports multi windows, this is the time
       // when you should delete the corresponding element.
+      //serverChild.kill();
       mainWindow = null;
     })
     
@@ -128,11 +129,14 @@ app.on('window-all-closed', function () {
   // On OS X it is common for applications and their menu bar
   // to stay active until the user quits explicitly with Cmd + Q
   if (process.platform !== 'darwin') {
+    //serverChild.kill();
     app.quit();
   }
 });
 
-
+app.on('quit', function() {
+  serverChild.kill();
+});
 
 app.on('activate', function () {
   // On OS X it's common to re-create a window in the app when the
@@ -195,6 +199,12 @@ app.on('activate', function () {
 //   });
 // }
 
+// BELOW FOR TESTING DECRYPTION PROCESS
+const key = crypto.pbkdf2Sync('password', 'salt', 1000, 32);
+const iv = crypto.randomBytes(16);//new Buffer(crypto.randomBytes(16), 'binary');
+// console.log('KEY IN MAIN:', key);
+// console.log('IV IN MAIN:', iv);
+
 function downloadVideo(url, targetPath) {
   const req = request({
     method: 'GET',
@@ -203,29 +213,21 @@ function downloadVideo(url, targetPath) {
 
   let encryptedVid = '';
   const output = fs.createWriteStream(targetPath);
-  let cipher = crypto.createCipher('aes-256-cbc', 'kazazi12');
+  //let cipher = crypto.createCipher('aes-256-ctr', '');
+
+  const cipher = crypto.createCipheriv('aes-256-ctr', key, iv);
   req.pipe(cipher).pipe(output);
 
-  // cipher.on('readable', () => {
-  //   const data = cipher.read();
-
-  //   if (data) {
-  //     encryptedVid += data;
-  //   }
-  // });
-
-  // req.on('data', (chunk) => {
-  //   cipher.write(chunk);
-  // });
-
-  // cipher.on('end', () => {
-  //   console.log('Video downloaded!');
-  //   output.write(encryptedVid);
-  // });
-
-  // req.on('end', () =>{
-  //   cipher.end();
-  // });
+  // HASH THE STUDENT ID SINCE THE SALT HAS TO BE AVAILABLE IN FILE FOR OFFLINE USE (CANT BE SAVED IN REMOTE DATABASE AND CANT BE HIDDEN IN ASSAR)
+  // use sid from progress.json instead of ajax call for pw
+  //   const iv = crypto.randomBytes(16, (err, salt) => {
+  //     if (err) return err;
+  //     save salt in json file with vid name as key?
+  //     const key = crypto.pbkdf2(sid, salt, 1000, 32, 'sha512', (err, key) => {
+  //      const cipher = crypto.createCipheriv('aes-256-ctr', key, salt);
+  //      req.pipe(cipher).pipe(output);
+  //     })
+  //   })
 }
 
 // function downloadVideo(url, targetPath) {
@@ -271,7 +273,9 @@ ipcMain.on('get-video', (event, arg) => {
     // we only send the localhost path if it exists on file
     // html5 will request from localhost, but our server will retrieve from local filePath
     const localhostPath = 'http://localhost:2462/' + arg;
-    serverChild.send({ filePath, videoFile: arg });
+    console.log('KEY IN MAIN:', key);
+    console.log('IV IN MAIN:', iv);
+    serverChild.send({ filePath, videoFile: arg, key: key, iv: iv });
     // event.sender.send('play-video', filePath);
     event.sender.send('play-video', localhostPath);
 

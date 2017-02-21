@@ -1,41 +1,37 @@
 const http = require('http');
 const fs = require('fs');
 const crypto = require('crypto');
-//const request = require('request');
 
 let filePath;
 let videoFile;
+let key;
+let iv;
 
 process.on('message', (m) => {
-  console.log('MESSAGE IN CHILD:', m);
+  console.log('MESSAGE IN CHILD KEY:', Buffer.from(m.key));
+  console.log('MESSAGE IN CHILD IV:', Buffer.from(m.iv));
   filePath = m.filePath;
+  //filePath = 'outputDecrypted.mp4';
   //filePath = 'decryptedVid.mp4';
+  //filePath = 'encryptedVid.mp4';
   videoFile = m.videoFile;
+  key = Buffer.from(m.key);//new Buffer(m.key);
+  iv = Buffer.from(m.iv);//new Buffer(m.iv);
   console.log('filePath:', filePath);
   console.log('videoFile:', videoFile);
 });
 
 const server = http.createServer((req, res) => {
 
-  const decipher = crypto.createDecipher('aes-256-ctr', 'kazazi12');
-
-  console.log("FILEPATH IN SERVER: ", filePath);
-  //const vidFileStream = fs.createReadStream(filePath);
-  //const fileStats = fs.statSync(filePath);
-  // const fileStats = fs.stat(filePath);
-  //console.log("FILE SIZE:", fileStats.size);
+  // const decipher = crypto.createDecipher('aes-256-ctr', '');
   
   if (req.method === 'GET') {
-    console.log('GET URL:', req.url);
 
-    //let decrypted = '';
-    
     if (req.url === '/' + videoFile) {
       fs.stat(filePath, (err, stats) => {
 
         if (err) {
           if (err.code === 'ENOENT') {
-            // 404 Error if file not found
             return res.sendStatus(404);
           }
         res.end(err);
@@ -48,73 +44,49 @@ const server = http.createServer((req, res) => {
 
         const positions = range.replace(/bytes=/, "").split("-");
         const start = parseInt(positions[0], 10);
+        console.log('START:', start);
         const fileSize = stats.size;
-        console.log('FILE SIZE:', fileSize);
         const end = positions[1] ? parseInt(positions[1], 10) : fileSize - 1;
+        console.log('END:', end);
         const chunkSize = (end - start) + 1;
-
 
         res.writeHead(206, {
           "Content-Range": 'bytes ' + start + '-' + end + '/' + fileSize,
-          //"Content-Range": 'bytes ' + 0 + '-' + 500 + '/' + fileSize,
           "Accept-Ranges": 'bytes',
           "Content-Length": chunkSize,
           "Content-Type": 'video/mp4',
-          //'Content-disposition': 'attachment; filename=' + videoFile
         });
-        //res.setHeader('Content-disposition', 'attachment; filename=' + videoFile);
-
-        //const vidFileStream = fs.createReadStream(filePath, { autoClose: true, start, end });
-        //const vidFileStream = fs.createReadStream('/Users/canoc/Coding/codesmith/production_project/offline-gre copy/videos/');
-        const vidFileStream = fs.createReadStream(filePath);
-        const output = fs.createWriteStream('decryptedFromServer.mp4');
-        //vidFileStream.pipe(decipher).pipe(res);
-        vidFileStream.on('open', () => {
+        
+        const vidFileStream = fs.createReadStream(filePath, { start, end });
+        //const output = fs.createWriteStream('outputDecrypted.mp4');
+        //vidFileStream.on('open', () => {
           console.log('OPENED!'); 
-          vidFileStream.pipe(decipher).pipe(output);
-          vidFileStream.pipe(decipher).pipe(res);
+          //vidFileStream.pipe(decipher).pipe(output);
+          //const decipher = crypto.createDecipher('aes-256-ctr', '');
+          //vidFileStream.pipe(decipher).pipe(res);
           //vidFileStream.pipe(res);
 
-
-        //   decipher.on('readable', () => {
-        //     const data = decipher.read();
-
-        //     if (data) {
-        //       res.write(data);
-        //     }
-        //   });
-
-        // decipher.on('data', (chunk) => {
-        //   res.write(chunk.toString('base64'));
+          // const key = crypto.pbkdf2Sync('password', 'salt', 1000, 32);
+          // const iv = new Buffer(crypto.randomBytes(16), 'binary');
+          const decipher = crypto.createDecipheriv('aes-256-ctr', key, iv);
+          vidFileStream.pipe(decipher).pipe(res);
+        //})
+        // .on('error', (err) => {
+        //   res.end(err);
         // });
 
-        //   vidFileStream.on('data', (chunk) => {
-        //     //console.log('DECRYPTED CHUNK:', chunk.toString('hex'));
-        //     res.write(decipher.update(chunk, 'binary', 'binary'));
-          
-            
-        // //     //res.write(decipher.update(chunk));
-        // //     decipher.write(chunk);
-        // //   });
 
-        //   vidFileStream.on('end', () => {
-        //     //decipher.end();
-        //     //res.end();
-        //     res.end(decipher.final('binary'), 'binary');
-        //   });
-        })
-        .on('error', (err) => {
-          res.end(err);
-        });
+        // use sid from progress.json instead of ajax call for pw
+        // get salt from json filePath
+        //     const key = crypto.pbkdf2(sid, salt, 1000, 32, 'sha512', (err, key) => {
+        //      const decipher = crypto.createDecipheriv('aes-256-ctr', key, salt);
+        //      req.pipe(decipher).pipe(res);
+        //     })
       });
     } else {
-      //res.writeHead(200, )
-      // res.statusCode = 200;
-      // res.end();
       res.sendStatus(200);
     }
   }
-
 });
 
 server.listen(2462, '127.0.0.1');
